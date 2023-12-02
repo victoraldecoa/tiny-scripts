@@ -1,0 +1,30 @@
+# Install:
+# copy this to ~/
+# > echo "source ~/.zsh_functions" > ~/.zshrc
+
+# dependencies
+# * git
+# * bundletool
+
+# git tools
+ghclone() {
+  git clone --recursive git@github.com:$1/$2.git
+}
+
+gitrinse() {
+  git clean -xfd
+  git submodule foreach --recursive git clean -xfd
+  git reset --hard
+  git submodule foreach --recursive git reset --hard
+  git submodule update --init --recursive
+}
+
+# android tools
+installapks() {
+  bundletool install-apks --apks=$1
+}
+
+deployaab() {
+  bundletool build-apks --bundle=$1 --output=$1.apks
+  installapks $1.apks
+}
