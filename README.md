@@ -4,7 +4,7 @@
 
 ### weekdays-in-month.clj
 
-```bash
+```
 ➜  ./weekdays-in-month.clj --month 12 --append ", worked 8 hours in a script for creating an invoice"
 Friday, December 1, 2023, worked 8 hours in a script for creating an invoice
 Monday, December 4, 2023, worked 8 hours in a script for creating an invoice
