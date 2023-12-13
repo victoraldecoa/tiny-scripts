@@ -41,19 +41,21 @@
        (map (partial log-form log))
        (str/join "\n")))
 
-(defn run
-  ([{:keys [year month] :as args}
-    {:keys [work-log] :as work}]
-   (let [last-day (.lengthOfMonth (YearMonth/of year month))
-         ranges (partition 2 1 (conj (vec (keys work-log)) (inc last-day)))]
-     (->> ranges
-          (map #(logged-work (merge args work {:from (first %)
-                                               :to (last %)
-                                               :log (work-log (first %))})))
-          (str/join "\n"))))
-  ([]
-   (let [{:keys [file] :as args} (cli/parse-opts *command-line-args* {:spec cli-options})
-         work (read-string (slurp file))]
-     (println (run args work)))))
+(defn month-work
+  [{:keys [year month] :as args}
+   {:keys [work-log] :as work}]
+  (let [last-day (.lengthOfMonth (YearMonth/of year month))
+        ranges (partition 2 1 (conj (vec (keys work-log)) (inc last-day)))]
+    (->> ranges
+         (map #(logged-work (merge args work {:from (first %)
+                                              :to (last %)
+                                              :log (work-log (first %))})))
+         (str/join "\n"))))
 
-(run)
+(defn print-report!
+  []
+  (let [{:keys [file] :as args} (cli/parse-opts *command-line-args* {:spec cli-options})
+        work (read-string (slurp file))]
+    (println (month-work args work))))
+
+(print-report!)
