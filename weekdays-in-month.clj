@@ -8,10 +8,6 @@
 (import '[java.time DayOfWeek LocalDate YearMonth])
 (import '[java.time.format DateTimeFormatter])
 
-(def dictionary
-  {:pt {:months [nil "Janeiro" "Fevereiro" "Março" "Abril" "Maio" "Junho" "Julho" "Agosto" "Setembro" "Outubro" "Novembro" "Dezembro"]
-        :days-in-week ["Domingo" "Segunda-feira" "Terça-feira" "Quarta-feira" "Quinta-feira" "Sexta-feira" "Sábado"]}})
-
 (defn day-of-week-int
   [^LocalDate date]
   (.getValue (.getDayOfWeek date)))
@@ -20,35 +16,44 @@
   [^LocalDate date]
   (<= (day-of-week-int date) (.getValue DayOfWeek/FRIDAY)))
 
-; babashka does not come with locales other than :en, so we have to build a custom one
-(defn formatted-custom
-  [language ^LocalDate date]
-  (let [dict (dictionary language)
-        days-in-week (dict :days-in-week)
-        months (dict :months)]
-    (str (days-in-week (day-of-week-int date)) ", " (.getDayOfMonth date) " de " (months (.getMonthValue date)) " de " (.getYear date))))
-
 (defn formatted
-  [language ^LocalDate date]
-  (case language
-    :en (.format date (DateTimeFormatter/ofPattern "EEEE, MMMM d, yyyy"))
-    (formatted-custom language date)))
+  [^LocalDate date]
+  {:formatted (.format date (DateTimeFormatter/ofPattern "EEEE, MMMM d, yyyy"))
+   :date date})
 
-(defn str-log
-  [{:keys [month year language]}]
-  (->> (range 1 (inc (.lengthOfMonth (YearMonth/of year month))))
-       (map #(LocalDate/of year month %))
-       (filter weekday?)
-       (map (partial formatted language))))
+(defn log-form
+  [log {:keys [formatted date]}]
+  (str formatted ": 7 hours - " log (when (= (.getDayOfWeek date) DayOfWeek/FRIDAY) "\n")))
 
 (def cli-options {:month {:coerce :long}
                   :year {:default (.getYear (LocalDate/now)) :coerce :long}
                   :language {:default :en :coerce :keyword}
-                  :append {:coerce :string}})
+                  :append {:coerce :string}
+                  :file {:coerce :string}})
 
-(let [{:keys [append] :as args} (cli/parse-opts *command-line-args* {:spec cli-options})]
-  (println
-   (->> args
-        str-log
-        (map #(str % append))
-        (str/join "\n"))))
+(defn logged-work
+  [{:keys [from to log month year skip]}]
+  (->> (range from to)
+       (remove skip)
+       (map #(LocalDate/of year month %))
+       (filter weekday?)
+       (map formatted)
+       (map (partial log-form log))
+       (str/join "\n")))
+
+(defn run
+  ([{:keys [year month] :as args}
+    {:keys [work-log] :as work}]
+   (let [last-day (.lengthOfMonth (YearMonth/of year month))
+         ranges (partition 2 1 (conj (vec (keys work-log)) (inc last-day)))]
+     (->> ranges
+          (map #(logged-work (merge args work {:from (first %)
+                                               :to (last %)
+                                               :log (work-log (first %))})))
+          (str/join "\n"))))
+  ([]
+   (let [{:keys [file] :as args} (cli/parse-opts *command-line-args* {:spec cli-options})
+         work (read-string (slurp file))]
+     (println (run args work)))))
+
+(run)
