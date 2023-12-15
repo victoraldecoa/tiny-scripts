@@ -27,34 +27,47 @@
 
 (defn working-days
   [{:keys [from to month year skip]}]
-  (->> (range from to)
-       (remove skip)
-       (map #(LocalDate/of year month %))
-       (filter weekday?)))
+  {:from from
+   :days (->> (range from to)
+              (remove skip)
+              (map #(LocalDate/of year month %))
+              (filter weekday?))})
 
 (defn logged-work
-  [{:keys [log] :as args}]
-  (->> (working-days args)
+  [{:keys [work-log]} {:keys [days from]}]
+  (->> days
        (map formatted)
-       (map (partial log-form log))
+       (map (partial log-form (:en (work-log from))))
        (str/join "\n")))
 
 (defn- final-total
-  [{:keys [hourly-rate] :as args}]
-  (* 7 hourly-rate (count (working-days args))))
+  [{:keys [hourly-rate]}
+   working-days-ranges]
+  (let [days (mapcat :days working-days-ranges)]
+    (* 7 hourly-rate (count days))))
+
+(defn- grouped 
+  [{:keys [work-log] :as args}
+    working-days-ranges]
+  (str 
+   (->> working-days-ranges
+        (map #(str (* 7 (count (:days %))) " horas - " (:pt (work-log (:from %)))))
+        (str/join "\n"))
+ 		"\n\nValor final: USD " (final-total args working-days-ranges)))
 
 (defn month-work
-  [{:keys [year month work-log hourly-rate] :as args}]
+  [{:keys [year month work-log] :as args}]
   (let [last-day (.lengthOfMonth (YearMonth/of year month))
-        ranges (partition 2 1 (conj (vec (keys work-log)) (inc last-day)))]
+        ranges (partition 2 1 (conj (vec (keys work-log)) (inc last-day)))
+        working-days-ranges (->> ranges
+                                 (map #(working-days (merge args {:from (first %)
+                                                                  :to (last %)}))))]
     (str
-     (->> ranges
-          (map #(logged-work (merge args {:from (first %)
-                                          :to (last %)
-                                          :log (work-log (first %))})))
+     (->> working-days-ranges
+          (map (partial logged-work args))
           (str/join "\n"))
-     "\nFinal Total / Balance Due: USD " (final-total (merge args {:from 1
-                                                                   :to last-day})))))
+     "\nFinal Total / Balance Due: USD " (final-total args working-days-ranges)
+   	 "\n\n" (grouped args working-days-ranges))))
 
 (def cli-options {:month {:coerce :long}
                   :year {:default (.getYear (LocalDate/now)) :coerce :long}
@@ -65,7 +78,8 @@
 (defn print-report!
   []
   (let [{:keys [file] :as args} (cli/parse-opts *command-line-args* {:spec cli-options})
-        content (read-string (slurp file))]
-    (println (month-work (merge args content)))))
+        content (read-string (slurp file))
+        params (merge args content)]
+    (println (month-work params))))
 
 (print-report!)
