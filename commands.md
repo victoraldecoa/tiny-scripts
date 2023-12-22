@@ -23,3 +23,8 @@ pssh -h ~/pssh_hosts -A -i "/Applications/Unity\ Hub.app/Contents/MacOS/Unity\ H
 ```
 /Applications/Unity/Hub/Editor/2022.3.16f1/Unity.app/Contents/MacOS/Unity -quit -batchmode -projectPath ~/Projects/sago-sample/Unity -executeMethod UnityConfig.UseEmbeddedAndroidTools -logFile temp.log && cat temp.log | grep '\[UnityConfig\]'
 ```
+
+### Install Android build tools
+```
+pssh -h ~/pssh_hosts -A -i "/Users/buildagent/buildAgent/android/sdk/sdk-33/cmdline-tools/8.0/bin/sdkmanager \"build-tools;30.0.3\""
+```
